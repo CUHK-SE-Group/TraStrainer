@@ -686,7 +686,7 @@ class TraStrainer:
 
             # Process trace data
             data_dict, resource_dict, tree = TraceProcessor.process_trace(trace)
-            if tree.size() == 0: # Skip empty or not ended traces
+            if not tree.size() or tree.size() != len(trace): # Skip empty, not ended or broken traces
                 skip_cnt += 1
                 continue
             trace_structure = TraceProcessor.get_seq_span(trace, tree)
