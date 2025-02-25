@@ -170,11 +170,11 @@ class TraceProcessor:
                         # New format uses 'Timestamp' instead of StartTimeUnixNano/EndTimeUnixNano.
                         if "Timestamp" in row:
                             # Use first 19 characters from Timestamp (e.g. "2024-11-21 12:50:50")
-                            row["StartTime"] = row["Timestamp"][:19]
+                            row["EndTime"] = row["Timestamp"][:19]
                             # For simplicity, set EndTime = StartTime + Duration
-                            row["EndTime"] = (
-                                datetime.strptime(row["StartTime"], "%Y-%m-%d %H:%M:%S")
-                                + timedelta(seconds=int(row["Duration"]) / 1e9)
+                            row["StartTime"] = (
+                                datetime.strptime(row["EndTime"], "%Y-%m-%d %H:%M:%S")
+                                - timedelta(seconds=int(row["Duration"]) / 1e9)
                             ).strftime("%Y-%m-%d %H:%M:%S")
 
                             row["ParentID"] = (
@@ -283,12 +283,15 @@ class TraceProcessor:
         """
         # Sort spans by start time; new format rows already have StartTime as a formatted string.
         spans = sorted(spans, key=lambda x: x.get("StartTime", ""))
-
+        root_span_id = ""
         # Create parent-child relationships based on ParentID
         parent_child = {}
         node_info = {}
         for i, span in enumerate(spans):
             parent_id = span.get("ParentID", "")
+            if parent_id == "root":
+                root_span_id = span["SpanID"]
+                root_span_data = span
             if parent_id in parent_child:
                 parent_child[parent_id].append(i)
             else:
@@ -298,8 +301,7 @@ class TraceProcessor:
         # Create the tree; assume the first span in sorted order is the root
         tree = Tree()
         if spans:
-            root_span_id = spans[0]["SpanID"]
-            tree.create_node(tag=root_span_id, identifier=root_span_id, data=spans[0])
+            tree.create_node(tag=root_span_id, identifier=root_span_id, data=root_span_data)
             TraceProcessor._build_tree(root_span_id, parent_child, tree, spans)
 
         return tree
