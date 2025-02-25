@@ -300,7 +300,7 @@ class TraceProcessor:
 
         # Create the tree; assume the first span in sorted order is the root
         tree = Tree()
-        if spans:
+        if root_span_id:
             tree.create_node(tag=root_span_id, identifier=root_span_id, data=root_span_data)
             TraceProcessor._build_tree(root_span_id, parent_child, tree, spans)
 
@@ -679,13 +679,16 @@ class TraStrainer:
         cur_sample_cnt = 0
         sample_trace_ids = []
         time_used = []
-
+        skip_cnt = 0
         # Process each trace
         for trace_id, trace in traces.items():
             start_time = time.time()
 
             # Process trace data
             data_dict, resource_dict, tree = TraceProcessor.process_trace(trace)
+            if tree.size() == 0: # Skip empty or not ended traces
+                skip_cnt += 1
+                continue
             trace_structure = TraceProcessor.get_seq_span(trace, tree)
             trace_metric = TraceProcessor.compute_feature_values(data_dict, metrics)
             metrics_weights = MetricPredictor.compute_metrics_weights(
@@ -735,7 +738,7 @@ class TraStrainer:
             time_used.append(end_time - start_time)
 
             # Break if we've processed enough traces
-            if cnt >= int(round(budget_sample_rate * len(traces))):
+            if cnt >= int(round(budget_sample_rate * (len(traces)-skip_cnt))):
                 break
 
         return sample_trace_ids
