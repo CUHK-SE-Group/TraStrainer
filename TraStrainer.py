@@ -177,7 +177,11 @@ class TraceProcessor:
                                 + timedelta(seconds=int(row["Duration"]) / 1e9)
                             ).strftime("%Y-%m-%d %H:%M:%S")
 
-                            row["ParentID"] = row.get("ParentSpanId", "")
+                            row["ParentID"] = (
+                                "root"
+                                if row.get("ParentSpanId") == ""
+                                else row.get("ParentSpanId")
+                            )
                             row["TraceID"] = row.get("TraceId", "")
                             row["SpanID"] = row.get("SpanId", "")
                             # Ensure PodName is available (required in later processing); use ServiceName.
@@ -209,7 +213,7 @@ class TraceProcessor:
                             row["EndTime"] = TimeUtils.timestamp_to_datetime(
                                 row["EndTimeUnixNano"][:10]
                             )
-                            row["ParentID"] = row.get("ParentID", "")
+                            row["ParentID"] = row.get("ParentID", "root")
                             row["status"] = "success"
                             row["PodName"] = row["PodName"].split("-")[0]
                             trace_id = row.get("TraceID")

@@ -82,8 +82,8 @@ class TestTraceProcessorNewFormat(unittest.TestCase):
         root_span = traces["trace-1"][0]
         self.assertEqual(root_span.get("StartTime"), "2024-11-21 12:50:50")
         self.assertEqual(root_span.get("EndTime"), "2024-11-21 12:50:50")
-        # When ParentSpanId is empty, our code below sets ParentID to ''
-        self.assertEqual(root_span.get("ParentID"), "")
+        # When ParentSpanId is empty, our code below sets ParentID to 'root'
+        self.assertEqual(root_span.get("ParentID"), "root")
         # PodName is set from ServiceName.
         self.assertEqual(root_span.get("PodName"), "ts-auth-service")
         # OperationName should be equal to SpanName.
