@@ -10,7 +10,7 @@ from collections import deque
 from typing import Dict, List, Tuple, Set, Any, Optional, Union, Deque
 from datetime import datetime, timedelta
 from LTSF_Linear.run_longExp import Argument, metric_infer
-
+import json
 
 class MetricProcessor:
     """Process and manage system metrics data from CSV files."""
@@ -18,42 +18,82 @@ class MetricProcessor:
     @staticmethod
     def process_metrics(path: str) -> Dict[Tuple[str, str], List[Dict[str, Union[str, float]]]]:
         """
-        Extract and process metrics from CSV files in the specified directory.
+        Extract and process metrics from CSV files.
+        Supports both legacy input (directory with multiple CSV files)
+        and new input (single CSV file with one metric per row).
         
         Args:
-            path: Path to the directory containing metric data
+            path: Path to the directory containing metric data OR a single CSV file.
             
         Returns:
             Dictionary mapping (service_name, metric_name) to list of timestamp-value pairs
         """
         data_dict = {}
-        folder_path = os.path.join(path, 'metric')
-        
-        for filename in os.listdir(folder_path):
-            if filename.endswith('.csv'):
-                file_path = os.path.join(folder_path, filename)
-                with open(file_path, 'r') as csv_file:
-                    csv_reader = csv.DictReader(csv_file)
-                    for row in csv_reader:
-                        # Extract pod/service name and timestamp
-                        pod_name = row.get('PodName') if row.get('PodName') else row.get('ServiceName')
-                        time_str = row.get('Time')[:19] if row.get('Time') else row.get('time')[:19]
-                        
-                        # Process each metric in the row
-                        for metric, value in row.items():
-                            # Skip certain metrics and non-metric fields
-                            if ('Byte' in metric or 'P95' in metric or 'P99' in metric or 'Syscall' in metric or
-                                metric in ['PodName', 'ServiceName', 'Time', 'time', 'TimeStamp', 'timestamp']):
-                                continue
+        if os.path.isdir(path):
+            # Legacy processing: multiple files in 'metric' subdirectory
+            folder_path = os.path.join(path, 'metric')
+            for filename in os.listdir(folder_path):
+                if filename.endswith('.csv'):
+                    file_path = os.path.join(folder_path, filename)
+                    with open(file_path, 'r') as csv_file:
+                        csv_reader = csv.DictReader(csv_file)
+                        for row in csv_reader:
+                            # Extract pod/service name and timestamp
+                            pod_name = row.get('PodName') if row.get('PodName') else row.get('ServiceName')
+                            time_str = row.get('Time')[:19] if row.get('Time') else row.get('time')[:19]
                             
-                            # Create key and store data
-                            key = (pod_name.split('-')[0], metric)
-                            if key not in data_dict:
-                                data_dict[key] = []
-                            
-                            # Handle empty values
-                            value = 0.0 if not value else float(value)
-                            data_dict[key].append({'date': time_str, 'value': value})
+                            # Process each metric in the row
+                            for metric, value in row.items():
+                                if (any(x in metric for x in ['Byte', 'P95', 'P99', 'Syscall']) or
+                                    metric in ['PodName', 'ServiceName', 'Time', 'time', 'TimeStamp', 'timestamp']):
+                                    continue
+                                
+                                key = (pod_name.split('-')[0], metric)
+                                if key not in data_dict:
+                                    data_dict[key] = []
+                                
+                                value = 0.0 if not value else float(value)
+                                data_dict[key].append({'date': time_str, 'value': value})
+        elif os.path.isfile(path) and path.endswith('.csv'):
+            INCLUDED_METRICS = [
+                "k8s.pod.cpu.usage",
+                "k8s.pod.cpu_limit_utilization",
+                "k8s.pod.memory.usage",
+                "k8s.pod.memory_limit_utilization",
+            ]
+            # New processing: single CSV file with one metric per row
+            with open(path, 'r') as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+                for row in csv_reader:
+                    # 
+                    if row.get('MetricName') not in INCLUDED_METRICS:
+                        continue
+                    # Use "TimeUnix" for timestamp and take the first 19 characters
+                    time_str = row.get('TimeUnix', '')[:19]
+                    
+                    metric = row.get('MetricName', '')
+                    value = 0.0 if not row.get('Value') else float(row.get('Value'))
+                    
+                    # Determine service name: Use ServiceName if provided; otherwise extract from ResourceAttributes
+                    service = row.get('ServiceName', '').strip()
+                    if not service:
+                        try:
+                            resource_attrs = json.loads(row.get('ResourceAttributes', '{}'))
+                            service = resource_attrs.get("k8s.deployment.name", "") or resource_attrs.get("k8s.pod.name", "")
+                        except json.JSONDecodeError:
+                            service = ""
+                    
+                    if service:
+                        key = (service, metric)
+                    else:
+                        key = ("unknown", metric)
+                    
+                    if key not in data_dict:
+                        data_dict[key] = []
+                    
+                    data_dict[key].append({'date': time_str, 'value': value})
+        else:
+            raise ValueError("Invalid path provided. Must be a directory or a CSV file.")
         
         return data_dict
 
