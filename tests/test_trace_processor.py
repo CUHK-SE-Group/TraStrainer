@@ -33,7 +33,7 @@ class TestTraceProcessorNewFormat(unittest.TestCase):
         # Row 1: a root span (ParentSpanId empty)
         writer.writerow(
             {
-                "Timestamp": "2024-11-21 12:50:50.550497367",
+                "Timestamp": "2024-11-21 12:50:51.550497367",
                 "TraceId": "trace-1",
                 "SpanId": "root-span",
                 "ParentSpanId": "",
@@ -43,7 +43,7 @@ class TestTraceProcessorNewFormat(unittest.TestCase):
                 "ServiceName": "ts-auth-service",
                 "ResourceAttributes": json.dumps({"dummy": "value"}),
                 "SpanAttributes": json.dumps({"attr": "val"}),
-                "Duration": "3000",
+                "Duration": "3000000000",
                 "StatusCode": "Unset",
                 "StatusMessage": "",
             }
@@ -51,7 +51,7 @@ class TestTraceProcessorNewFormat(unittest.TestCase):
         # Row 2: a child span (ParentSpanId = "root-span")
         writer.writerow(
             {
-                "Timestamp": "2024-11-21 12:50:51.550497367",
+                "Timestamp": "2024-11-21 12:50:50.550497367",
                 "TraceId": "trace-1",
                 "SpanId": "child-span",
                 "ParentSpanId": "root-span",
@@ -61,7 +61,7 @@ class TestTraceProcessorNewFormat(unittest.TestCase):
                 "ServiceName": "ts-auth-service",
                 "ResourceAttributes": json.dumps({"dummy": "value"}),
                 "SpanAttributes": json.dumps({"attr": "val"}),
-                "Duration": "1500",
+                "Duration": "1500000000",
                 "StatusCode": "Unset",
                 "StatusMessage": "",
             }
@@ -80,8 +80,8 @@ class TestTraceProcessorNewFormat(unittest.TestCase):
 
         # Verify processing of the new fields.
         root_span = traces["trace-1"][0]
-        self.assertEqual(root_span.get("StartTime"), "2024-11-21 12:50:50")
-        self.assertEqual(root_span.get("EndTime"), "2024-11-21 12:50:50")
+        self.assertEqual(root_span.get("StartTime"), "2024-11-21 12:50:48")
+        self.assertEqual(root_span.get("EndTime"), "2024-11-21 12:50:51")
         # When ParentSpanId is empty, our code below sets ParentID to 'root'
         self.assertEqual(root_span.get("ParentID"), "root")
         # PodName is set from ServiceName.

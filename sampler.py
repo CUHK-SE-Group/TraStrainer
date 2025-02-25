@@ -8,8 +8,8 @@ args = parser.parse_args()
 
 # read data
 data_file = args.path # demo: './data/test/'
-metrics = MetricProcessor.process_metrics(data_file)
-traces = TraceProcessor.read_traces(data_file)
+metrics = MetricProcessor.process_metrics(data_file + '/metrics.csv')
+traces = TraceProcessor.read_traces(data_file + '/traces.csv')
 
 # run TraStrainer
 sampling_rate = float(args.rate) # demo 0.1

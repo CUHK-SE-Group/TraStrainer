@@ -196,6 +196,9 @@ class TraceProcessor:
                                 traces[trace_id] = [row]
             except FileNotFoundError:
                 pass
+            for trace_id in traces:
+                traces[trace_id] = sorted(traces[trace_id], key=lambda x: x["Duration"], reverse=True) # Sort by duration
+            traces = dict(sorted(traces.items(), key=lambda x: x[1][0]["StartTime"], reverse=True)) # Sort by start time
             return traces
 
         folder_path = os.path.join(path, "trace")
